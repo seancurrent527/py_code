@@ -108,6 +108,9 @@ class GameGrid:
     def __copy__(self):
         pass
 
+    def __eq__(self, other):
+        return str(self) == str(other)
+
     def move(self, char):
         opposite = {'w':'s', 'a':'d', 'd':'a', 's':'w'}
         self.turn += 1
