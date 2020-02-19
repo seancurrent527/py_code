@@ -49,16 +49,17 @@ class Evolution:
 def mse_benefit(predicted, target):
     return -sum((predicted - target)**2)
 
-def mate_arrays(v1, v2, variance = 0.1):
+def mate_arrays(v1, v2, variance = 0.01):
     assert len(v1) == len(v2)
-    return np.array([random.choice((v1[i], v2[i])) for i in range(len(v1))]) + (np.random.rand(len(v1))*2*variance - variance)
+    return (v1 + v2) / 2 + (np.random.rand(len(v1))*2*variance - variance)
+    #return np.array([random.choice((v1[i], v2[i])) for i in range(len(v1))]) + (np.random.rand(len(v1))*2*variance - variance)
 
 #====================================================================================================================
 def main():
     target = np.array([1,1,1,1,1,1,1,1,1,1])
     fitness_func = lambda x: mse_benefit(x, target)
     algo = Evolution(10, fitness_func, mate_arrays)
-    for i in range(10):
+    for i in range(100):
         print(algo.evolve(1000, 1, 0.01))
 
 if __name__ == '__main__':
