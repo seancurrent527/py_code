@@ -10,7 +10,7 @@ def readScene(file):
     with open(file) as fp:
         return fp.read()
 
-def __main__():
+def main():
     args = parse_args()
     format_string = readScene(args.file)
     gameState = game.GameState(format_string)

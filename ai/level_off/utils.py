@@ -13,14 +13,14 @@ class Actions:
 
     # -1 pull, 1 push
     ACTIONS = {'PUSH_' + key: value + (1,) for key, value in DIRECTIONS.items()}
-    ACTIONS.update({'PULL_' + key: value + (-1,) for key, value in ACTIONS.items()})
+    ACTIONS.update({'PULL_' + key: value + (-1,) for key, value in DIRECTIONS.items()})
 
 class Levels:
-    letters = 'ABCDEFGHIJKLMN'
-    sizes = {letters[i]: i + 1 for i in range(len(letters))}
-    sizes.update({k.lower(): -v for k, v in sizes.items()})
-    symbols = {v: k for k, v in sizes.items()}
+    LETTERS = 'ABCDEFGHIJKLMN'
+    SIZES = {'ABCDEFGHIJKLMN'[i]: i + 1 for i in range(len('ABCDEFGHIJKLMN'))}
+    SIZES.update({k.lower(): -v for k, v in SIZES.items()})
+    SYMBOLS = {v: k for k, v in SIZES.items()}
 
     @staticmethod
     def from_string(size):
-        return Levels.sizes[size]
+        return Levels.SIZES[size]
