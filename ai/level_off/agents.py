@@ -35,7 +35,7 @@ class Agent:
     def legalBlockPush(self, position, vector):
         dr, dc, p = vector
         r, c = position
-        if type(self.grid[r + dr, c + dc]) in (objects.Wall, objects.Block):
+        if type(self.grid[r + dr, c + dc]) is objects.Wall:
             return False
         return True
         

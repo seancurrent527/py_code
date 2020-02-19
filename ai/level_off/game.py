@@ -1,5 +1,5 @@
 import objects
-from utils import Actions
+from utils import Actions, Levels
 import numpy as np
 
 class GameState:
@@ -14,6 +14,21 @@ class GameState:
         self.size = (r, c)
         self.grid = np.full(self.size, None, dtype=object)
         self.grid[self.getPlayerPosition()] = self.player
+
+    def __str__(self):
+        string_list = []
+        for row in self.grid:
+            string_list.append([])
+            for item in row:
+                if type(item) is objects.Wall:
+                    string_list[-1].append('#')
+                elif item is None:
+                    string_list[-1].append(' ')
+                elif type(item) is objects.Player:
+                    string_list[-1].append('P')
+                else:
+                    string_list[-1].append(Levels.symbols[item.size])
+        return '\n'.join([''.join(ls) for ls in string_list])
 
     def getWalls(self):
         return self.walls
@@ -37,7 +52,7 @@ class GameState:
         return self.grid
 
     def move(self, direction):
-        vector = Actions.DIRECTIONS[direction]
+        vector = Actions.ACTIONS[direction]
         self.movePlayer(vector)
 
     def movePlayer(self, vector):
@@ -52,8 +67,10 @@ class GameState:
         origin = block.position
         position = block.move(vector)
         remaining = block
-        if self.grid[position] is not None:
+        if type(self.grid[position]) is objects.Hole:
             remaining = self.fillHole(block, self.grid[position])
+        if type(self.grid[position]) is objects.Block:
+            remaining = self.stackBlocks(block, self.grid[position])
         self.grid[position] = remaining
         self.grid[origin] = None
 
@@ -70,6 +87,11 @@ class GameState:
             self.blocks.remove(block)
             self.holes.remove(hole)
             return None
+
+    def stackBlocks(self, block1, block2):
+        block1.size += block2.size
+        self.blocks.remove(block2)
+        return block1
     
     def filterValue(self, value, position):
         if value == ' ':
@@ -88,3 +110,28 @@ class GameState:
             self.grid[position] = self.blocks[-1]
         else:
             raise ValueError(f'Format character "{value}" not recognized.')
+
+class Game:
+    def __init__(self, gameState, actionFunction):
+        self.gameState = gameState
+        self.actionFunction = actionFunction
+
+    def run(self):
+        print(self.gameState)
+        while self.gameState.holes:
+            print('Action: ', end = ' ')
+            action = self.actionFunction(self.gameState)
+            self.gameState.move(action)
+            print(self.gameState)
+        print('Leveled off.')
+        return True
+
+    @staticmethod
+    def actionFromPlayer(*args):
+        action = input().lower()
+        if action not in ('w', 'a', 's', 'd', 'pw', 'pa', 'ps', 'pd'):
+            print(f'"{action}" is not a valid action. Action: ', end = ' ')
+            return Game.actionFromPlayer()
+        mp = {'w':'NORTH', 'a':'WEST', 's':'SOUTH', 'd':'EAST'}
+        prefix = 'PULL_' if action.startswith('p') else 'PUSH_'
+        return prefix + mp[action[-1]]

@@ -9,24 +9,17 @@ class Actions:
     DIRECTIONS = {Directions.NORTH : (-1, 0),
                   Directions.SOUTH : (1, 0),
                   Directions.EAST : (0, 1),
-                  Directions.WEST : (0, -1),
-                  Directions.STOP : (0, 0)}
+                  Directions.WEST : (0, -1)}
 
     # -1 pull, 1 push
     ACTIONS = {'PUSH_' + key: value + (1,) for key, value in DIRECTIONS.items()}
     ACTIONS.update({'PULL_' + key: value + (-1,) for key, value in ACTIONS.items()})
 
 class Levels:
-    sizes = {'A' : 1,
-             'B' : 2,
-             'C' : 3,
-             'D' : 4,
-             'E' : 5,
-             'a' : -1,
-             'b' : -2,
-             'c' : -3,
-             'd' : -4,
-             'e' : -5}
+    letters = 'ABCDEFGHIJKLMN'
+    sizes = {letters[i]: i + 1 for i in range(len(letters))}
+    sizes.update({k.lower(): -v for k, v in sizes.items()})
+    symbols = {v: k for k, v in sizes.items()}
 
     @staticmethod
     def from_string(size):
