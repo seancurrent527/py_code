@@ -1,44 +1,71 @@
 from utils import Actions
-import objects
 
-class Agent:
-    def __init__(self, gameState):
-        self.grid = gameState.getGrid()
-        self.player = gameState.getPlayer()
-
-    def getLegalActions(self):
+class LegalAgent:
+    
+    @staticmethod
+    def getLegalActions(state):
         actions = []
         for direction, vector in Actions.ACTIONS.items():
-            checker = self.legalPush if vector[-1] > 0 else self.legalPull
-            if checker(vector):
-                actions.append(direction)
+            checker = LegalAgent.legalPush if vector[-1] > 0 else LegalAgent.legalPull
+            if checker(vector, state):
+                actions.append((direction, vector))
         return actions
 
-    def legalPush(self, vector):
+    @staticmethod
+    def legalPush(vector, state):
         dr, dc, p = vector
-        r, c = self.player.position
-        if type(self.grid[r + dr, c + dc]) in (objects.Wall, objects.Hole):
+        position, grid = state
+        r, c = position
+        if not LegalAgent.legalPosition((r + dr, c + dc), grid):
             return False
-        elif self.grid[r + dr, c + dc] is None:
+        if grid[r + dr][c + dc] is None:
+            return False #can't push a wall
+        elif grid[r + dr][c + dc] < 0:
+            return False #can't push a hole
+        elif grid[r + dr][c + dc] == 0:
             return True
         else:
-            return self.legalBlockPush((r + dr, c + dc), vector)
+            return LegalAgent.legalBlockPush(vector, (r + dr, c + dc), state)
 
-    def legalPull(self, vector):
+    @staticmethod
+    def legalPull(vector, state):
         dr, dc, p = vector
-        r, c = self.player.position
-        if type(self.grid[r - dr, c - dc]) is objects.Block:
-            if type(self.grid[r + dr, c + dc]) is not objects.Block:
-                return self.legalPush((-dr, -dc, p))
-        return False
+        position, grid = state
+        r, c = position
+        if not LegalAgent.legalPosition((r + dr, c + dc), grid):
+            return False
+        if not LegalAgent.legalPosition((r - dr, c - dc), grid):
+            return False
+        if grid[r - dr][c - dc] is None:
+            return False #can't pull a wall
+        elif grid[r - dr][c - dc] <= 0:
+            return False #can't pull a hole or empty space
+        if grid[r + dr][c + dc] is None:
+            return False #can't move into a wall
+        elif grid[r + dr][c + dc] > 0:
+            return False #can't move into a block
+        else:
+            return LegalAgent.legalPush(vector, state)
 
-    def legalBlockPush(self, position, vector):
+    @staticmethod
+    def legalBlockPush(vector, position, state):
         dr, dc, p = vector
         r, c = position
-        if type(self.grid[r + dr, c + dc]) is objects.Wall:
+        grid = state[1]
+        if not LegalAgent.legalPosition((r + dr, c + dc), grid):
+            return False
+        if grid[r + dr][c + dc] is None:
             return False
         return True
         
+    @staticmethod
+    def legalPosition(position, grid):
+        r, c = position
+        try:
+            grid[r][c]
+        except IndexError:
+            return False
+        return True
             
 
         

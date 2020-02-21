@@ -1,13 +1,14 @@
 import objects
 from utils import Actions, Levels
 import numpy as np
+import time
 
 class GameState:
-    def __init__(self, format_string):
+    def __init__(self, formatString):
         self.blocks = []
         self.holes = []
         self.walls = []
-        grid = format_string.split('\n')
+        grid = formatString.split('\n')
         r = len(grid)
         c = len(grid[0])
         self.size = (r, c)
@@ -18,19 +19,19 @@ class GameState:
         self.grid[self.getPlayerPosition()] = self.player
 
     def __str__(self):
-        string_list = []
+        stringList = []
         for row in self.grid:
-            string_list.append([])
+            stringList.append([])
             for item in row:
                 if type(item) is objects.Wall:
-                    string_list[-1].append('#')
+                    stringList[-1].append('#')
                 elif item is None:
-                    string_list[-1].append(' ')
+                    stringList[-1].append(' ')
                 elif type(item) is objects.Player:
-                    string_list[-1].append('P')
+                    stringList[-1].append('P')
                 else:
-                    string_list[-1].append(Levels.SYMBOLS[item.size])
-        return '\n'.join([''.join(ls) for ls in string_list])
+                    stringList[-1].append(Levels.SYMBOLS[item.size])
+        return '\n'.join([''.join(ls) for ls in stringList])
 
     def getWalls(self):
         return self.walls
@@ -53,8 +54,21 @@ class GameState:
     def getGrid(self):
         return self.grid
 
+    def getState(self):
+        grid = np.zeros_like(self.grid, dtype = object)
+        for block in self.blocks:
+            grid[block.position] = block.size
+        for hole in self.holes:
+            grid[hole.position] = hole.size
+        for wall in self.walls:
+            grid[wall.position] = None
+        return tuple(map(tuple, grid))
+
     def move(self, direction):
-        vector = Actions.ACTIONS[direction]
+        try:
+            vector = Actions.ACTIONS[direction]
+        except KeyError:
+            return False
         if vector[-1] > 0:
             return self.pushPlayer(vector)
         else:
@@ -78,12 +92,12 @@ class GameState:
     def pullPlayer(self, vector):
         origin = self.player.position
         position = self.player.move(vector)
-        pull_position = origin[0] - vector[0], origin[1] - vector[1]
+        pullPosition = origin[0] - vector[0], origin[1] - vector[1]
         if self.grid[position] is not None:
             self.player.position = origin
             return False
-        if type(self.grid[pull_position]) is objects.Block:
-            self.moveBlock(self.grid[pull_position], vector)
+        if type(self.grid[pullPosition]) is objects.Block:
+            self.moveBlock(self.grid[pullPosition], vector)
         else:
             self.grid[origin] = None
         self.grid[position] = self.player
@@ -147,24 +161,40 @@ class Game:
         self.gameState = gameState
         self.actionFunction = actionFunction
 
-    def run(self):
+    def run(self, pause = 0):
         print(self.gameState)
         while self.gameState.holes and self.gameState.blocks:
             print('Action: ', end = ' ')
-            action = self.actionFunction(self.gameState)
+            action = self.actionFunction()
             result = self.gameState.move(action)
+            print()
             if not result:
                 print('That is not a valid action.')
             print(self.gameState)
+            time.sleep(pause)
         print('Leveled off.')
         return True
 
     @staticmethod
-    def actionFromPlayer(*args):
-        action = input().lower()
-        if action not in ('w', 'a', 's', 'd', 'pw', 'pa', 'ps', 'pd'):
-            print(f'"{action}" is not a valid action. Action: ', end = ' ')
-            return Game.actionFromPlayer()
-        mp = {'w':'NORTH', 'a':'WEST', 's':'SOUTH', 'd':'EAST'}
-        prefix = 'PULL_' if action.startswith('p') else 'PUSH_'
-        return prefix + mp[action[-1]]
+    def actionFromPlayer():
+        
+        def getAction():
+            action = input().lower()
+            if action not in ('w', 'a', 's', 'd', 'pw', 'pa', 'ps', 'pd'):
+                print(f'"{action}" is not a valid action. Action: ', end = ' ')
+                return Game.actionFromPlayer()
+            mp = {'w':'NORTH', 'a':'WEST', 's':'SOUTH', 'd':'EAST'}
+            prefix = 'PULL_' if action.startswith('p') else 'PUSH_'
+            return prefix + mp[action[-1]]
+
+        return getAction
+
+    @staticmethod
+    def actionFromList(ls):
+        
+        def getAction():
+            action = ls[0]
+            del ls[0]
+            return action
+
+        return getAction
