@@ -8,8 +8,8 @@ class LegalAgent:
         for direction, vector in Actions.ACTIONS.items():
             checker = LegalAgent.legalPush if vector[-1] > 0 else LegalAgent.legalPull
             if checker(vector, state):
-                actions.append((direction, vector))
-        return actions
+                actions.append(direction)
+        return sorted(actions)
 
     @staticmethod
     def legalPush(vector, state):

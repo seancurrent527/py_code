@@ -163,16 +163,20 @@ class Game:
 
     def run(self, pause = 0):
         print(self.gameState)
+        cost = 0
         while self.gameState.holes and self.gameState.blocks:
             print('Action: ', end = ' ')
             action = self.actionFunction()
+            cost += 1
             result = self.gameState.move(action)
             print()
             if not result:
+                cost -= 1
                 print('That is not a valid action.')
             print(self.gameState)
             time.sleep(pause)
         print('Leveled off.')
+        print('Cost: ', cost)
         return True
 
     @staticmethod
