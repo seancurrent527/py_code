@@ -24,8 +24,9 @@ def main():
             searchFunction = search.aStar(search.distanceHeuristic)
         elif args.search == 'qlearning':
             problem = problems.LevelProblem(gameState)
-            qTable = reinforcement.qLearning(problem, alpha=0.4, gamma=0.6, epsilon=0.2, trials=args.trials)
-            searchFunction = reinforcement.qInference(qTable)
+            qAgent = reinforcement.QAgent(alpha=0.4, gamma=0.6, epsilon=0.2)
+            qAgent.fit(problem, args.trials)
+            searchFunction = qAgent.search
         else:
             searchFunction = getattr(search, args.search)
         problem = problems.LevelProblem(gameState)
