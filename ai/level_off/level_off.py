@@ -3,7 +3,7 @@ import argparse
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-f', '--file', type = str, default='scenarios/scene1.txt', help='The scenario file to run.')
+    parser.add_argument('-f', '--file', type = str, default='scenarios/easy/basic.txt', help='The scenario file to run.')
     parser.add_argument('-s', '--search', type = str, default='', help='The search algorithm to use.')
     parser.add_argument('-p', '--pause', type = float, default='0.0', help='The amount of time to pause in-between actions.')
     parser.add_argument('-t', '--trials', type = int, default=100, help='The number of trials to use during reinforcement learning.')
@@ -27,6 +27,11 @@ def main():
             qAgent = reinforcement.QAgent(alpha=0.4, gamma=0.6, epsilon=0.2)
             qAgent.fit(problem, args.trials)
             searchFunction = qAgent.search
+        elif args.search == 'deepq':
+            problem = problems.LevelProblem(gameState)
+            deepQ = reinforcement.DeepQAgent(reinforcement.getModel, epsilon=0.2)
+            deepQ.fit(problem, args.trials)
+            searchFunction = deepQ.search
         else:
             searchFunction = getattr(search, args.search)
         problem = problems.LevelProblem(gameState)
