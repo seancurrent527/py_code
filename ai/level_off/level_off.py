@@ -1,40 +1,47 @@
 import game, search, problems, reinforcement
-import argparse
+import argparse, os
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-f', '--file', type = str, default='scenarios/easy/basic.txt', help='The scenario file to run.')
+    parser.add_argument('-f', '--file', type = str, default='scenarios/training/basic.txt', help='The scenario file to run.')
     parser.add_argument('-s', '--search', type = str, default='', help='The search algorithm to use.')
     parser.add_argument('-p', '--pause', type = float, default='0.0', help='The amount of time to pause in-between actions.')
     parser.add_argument('-t', '--trials', type = int, default=100, help='The number of trials to use during reinforcement learning.')
+    parser.add_argument('-l', '--load', type = str, default = 'models/deepq.h5',
+                        help='Model weights to load for deepq learing. If the path does not exist, a new model will be made.')
+    parser.add_argument('--gpu', action = 'store_true', help="Whether or not to use GPU during Deep Q learning.")
     return parser.parse_args()
-
-def readScene(file):
-    with open(file) as fp:
-        return fp.read()
 
 def main():
     args = parse_args()
-    formatString = readScene(args.file)
-    gameState = game.GameState(formatString)
+    if not args.gpu:
+        os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+    gameState = game.GameState.fromFile(args.file)
     if not args.search:
         playing = game.Game(gameState, game.Game.actionFromPlayer())
     else:
+        problem = problems.LevelProblem(gameState)
         if args.search == 'astar':
             searchFunction = search.aStar(search.distanceHeuristic)
         elif args.search == 'qlearning':
-            problem = problems.LevelProblem(gameState)
             qAgent = reinforcement.QAgent(alpha=0.4, gamma=0.6, epsilon=0.2)
             qAgent.fit(problem, args.trials)
             searchFunction = qAgent.search
         elif args.search == 'deepq':
-            problem = problems.LevelProblem(gameState)
-            deepQ = reinforcement.DeepQAgent(reinforcement.getModel, epsilon=0.2)
-            deepQ.fit(problem, args.trials)
+            _, startState = problem.getStartState()
+            model = reinforcement.getModel((len(startState), len(startState[0]), 4))
+            if os.path.exists(args.load):
+                model.load_weights(args.load)
+            model.compile(loss = 'mse', optimizer = 'adam')
+            trainingSet = problems.ProblemSet.fromDirectory('scenarios/training')
+            testingSet = problems.ProblemSet.fromDirectory('scenarios/testing/easy')
+            deepQ = reinforcement.DeepQAgent(model, alpha=0.4, gamma=0.6, epsilon=0.2, beta = 0.2)
+            deepQ.fitProblemSet(trainingSet, args.trials)
+            deepQ.searchAll(testingSet, record = True)
+            deepQ.save(args.load)
             searchFunction = deepQ.search
         else:
             searchFunction = getattr(search, args.search)
-        problem = problems.LevelProblem(gameState)
         solution = searchFunction(problem)
         playing = game.Game(gameState, game.Game.actionFromList(solution))
     playing.run(pause=args.pause)

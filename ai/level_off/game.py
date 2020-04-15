@@ -156,27 +156,35 @@ class GameState:
         else:
             raise ValueError(f'Format character "{value}" not recognized.')
 
+    @classmethod
+    def fromFile(cls, fname):
+        with open(fname) as fp:
+            return cls(fp.read())
+
 class Game:
     def __init__(self, gameState, actionFunction):
         self.gameState = gameState
         self.actionFunction = actionFunction
 
-    def run(self, pause = 0):
-        print(self.gameState)
+    def run(self, pause = 0, file = None):
+        print(self.gameState, file = file)
         cost = 0
         while self.gameState.holes and self.gameState.blocks:
-            print('Action: ', end = ' ')
+            print('Action: ', end = ' ', file = file)
             action = self.actionFunction()
+            if action is None:
+                print('Problem not solved.', file = file)
+                return False
             cost += 1
             result = self.gameState.move(action)
-            print()
+            print(file = file)
             if not result:
                 cost -= 1
-                print('That is not a valid action.')
-            print(self.gameState)
+                print('That is not a valid action.', file = file)
+            print(self.gameState, file = file)
             time.sleep(pause)
-        print('Leveled off.')
-        print('Cost: ', cost)
+        print('Leveled off.', file = file)
+        print('Cost: ', cost, file = file)
         return True
 
     @staticmethod
@@ -197,6 +205,8 @@ class Game:
     def actionFromList(ls):
         
         def getAction():
+            if len(ls) == 0:
+                return None
             action = ls[0]
             del ls[0]
             return action
