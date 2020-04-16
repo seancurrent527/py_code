@@ -54,6 +54,9 @@ class GameState:
     def getGrid(self):
         return self.grid
 
+    def isPlayable(self):
+        return self.holes and self.blocks
+
     def getState(self):
         grid = np.zeros_like(self.grid, dtype = object)
         for block in self.blocks:
@@ -169,7 +172,7 @@ class Game:
     def run(self, pause = 0, file = None):
         print(self.gameState, file = file)
         cost = 0
-        while self.gameState.holes and self.gameState.blocks:
+        while self.gameState.isPlayable():
             print('Action: ', end = ' ', file = file)
             action = self.actionFunction()
             if action is None:
