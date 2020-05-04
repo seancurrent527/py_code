@@ -4,7 +4,7 @@ from game import Game
 from utils import Actions
 from collections import defaultdict
 import tensorflow as tf
-from scipy.special import softmax
+import random
 
 def getMinMax(array):
     nonZeroPos = list(zip(*np.nonzero(array)))
@@ -30,21 +30,25 @@ def getManhattanReward(state, newState):
     mini, maxi = getMinMax(state)
     newMinMax = getMinMax(newState)
     if newMinMax == 0:
-        return 100
+        return 10000
     newMini, newMaxi = newMinMax
-    bonus = 50 * (state[state < 0].sum() < newState[newState < 0].sum())
-    posToBlock = search.manhattanDistance(pos, maxi) - search.manhattanDistance(newPos, newMaxi)
-    blockToHole = search.manhattanDistance(mini, maxi) - search.manhattanDistance(newMini, newMaxi)
-    return bonus + 1 + posToBlock + blockToHole + 1 * (differences != 0).any()
+    bonus = (state[state < 0].sum() - newState[newState < 0].sum())
+    blockToHole = (search.manhattanDistance(mini, maxi) - search.manhattanDistance(newMini, newMaxi))
+    bordering = newState[newPos[0] - 1: newPos[0] + 2, newPos[1] - 1: newPos[1] + 2]
+    borderingPoints = (bordering > 0).any()
+    reward = 200 * bonus + 10 * blockToHole
+    return max(0, reward) + borderingPoints - 1
 
 def getModel(input_shape):
     state = tf.keras.layers.Input(shape = input_shape)
-    hidden = tf.keras.layers.Conv2D(8, 3, activation = 'relu')(state)
-    hidden = tf.keras.layers.Conv2D(8, 3, activation = 'relu')(hidden)
-    hidden = tf.keras.layers.Conv2D(8, 3, activation = 'relu')(hidden)
+    hidden = tf.keras.layers.Conv2D(16, 3, activation = 'relu', padding = 'same')(state)
+    hidden = tf.keras.layers.Conv2D(16, 3, activation = 'relu', padding = 'same')(hidden)
+    hidden = tf.keras.layers.Conv2D(16, 3, activation = 'relu', padding = 'same')(hidden)
+    #hidden = tf.keras.layers.Dropout(0.2)(hidden)
     hidden = tf.keras.layers.Flatten()(hidden)
-    #output = tf.keras.layers.Dense(8, activation = 'relu')(hidden)
-    output = tf.keras.layers.Dense(8, activation = 'softmax')(hidden)
+    hidden = tf.keras.layers.Dense(32, activation = 'relu')(hidden)
+    #hidden = tf.keras.layers.Dropout(0.2)(hidden)
+    output = tf.keras.layers.Dense(8)(hidden)
     return tf.keras.models.Model(state, output)
 
 class QAgent:
@@ -94,7 +98,7 @@ class QAgent:
                 epochs += 1
 
             if verbose and i % 1 == 0:
-                print(f'Trial {i}: epochs - {epochs}')
+                print(f'\rTrial {i}: epochs - {epochs}')
 
     def search(self, problem):
         state = problem.getStartState()
@@ -110,17 +114,16 @@ class QAgent:
         return path
 
 class DeepQAgent:
-    def __init__(self, model,  alpha=0.1, gamma=0.6, epsilon=0.1, beta = 0.5,
+    def __init__(self, model,  alpha=0.1, gamma=0.6, epsilon=0.1,
                                     rewardFunction=getManhattanReward):
         self.model = model
         self.alpha = alpha
         self.gamma = gamma
         self.epsilon = epsilon
-        self.beta = beta
         self.rewardFunction = rewardFunction
         self.actions = sorted(Actions.ACTIONS.keys())
-        self.qTable = defaultdict(lambda: pd.Series(0.0, index = self.actions))
-        self.memory = []
+        self.memory = defaultdict(list)
+        self.experience = 0
 
     def getLegalActions(self, state):
         return agents.LegalAgent.getLegalActions(state)
@@ -136,59 +139,60 @@ class DeepQAgent:
         array[state > 0, 3] = state[state > 0]
         return array
 
-    def getAction(self, state, legal, qTable = False):
-        if qTable:
-            row = self.qTable[state][legal]
-            return np.random.choice(row[row == row.max()].index)
+    def getAction(self, state, legal):
         predictions = self.model.predict(self.makeArray(state)[np.newaxis,...])[0]
         row = pd.Series(predictions, index = self.actions)[legal]
-        return np.random.choice(row[row == row.max()].index)
+        return row.index[row.argmax()]
 
     def update(self, state, problem, legal):
         x = self.makeArray(state)
-        y = []
+        
+        nextStates = []
+        nextRewards = []
         for action in self.actions:
             if action not in legal:
-                y.append(0)
+                nextStates.append(self.makeArray(state))
+                nextRewards.append(-1)
                 continue
             newState = problem.generateSuccessor(state, action)
             reward = self.rewardFunction(state, newState)
-            newLegal = self.getLegalActions(newState)
-            self.updateQTable(state, newState, reward, newLegal, action)
-        #y = np.array(y)
-        y = softmax(self.qTable[state])
-        self.memory.append((x, y))
+            nextStates.append(self.makeArray(newState))
+            nextRewards.append(reward)
+        nextStates.append(self.makeArray(state))
+        qScores = self.model.predict(np.array(nextStates))
+        nextQMax, qScores = qScores[:8].max(axis = 1), qScores[-1]
+        y = np.array(nextRewards + self.gamma * nextQMax)
+        y = qScores + self.alpha * (y - qScores)
+        self.memory[problem.name].append((x, y))
 
-        if len(self.memory) % 64 == 0:
-            x, y = zip(*self.memory[-64:])
-            self.model.train_on_batch(np.array(x), np.array(y))
+        if self.experience % 10 == 0:
+            x, y = [], []
+            for _, mem in self.memory.items():
+                partialX, partialY = zip(*random.sample(mem[-1000:], min(len(mem), 200)))
+                x.extend(partialX), y.extend(partialY)
+            order = np.random.permutation(len(x))
+            x = np.array(x)[order]
+            y = np.array(y)[order]
+            self.model.train_on_batch(x, y)
 
-    def updateQTable(self, state, newState, reward, newLegal, action):
-        qValue = self.qTable[state][action]
-        nextMax = self.qTable[newState][newLegal].max()
-
-        newQValue = (1 - self.alpha) * qValue
-        newQValue += self.alpha * (reward + self.gamma * nextMax)
-        self.qTable[state][action] = newQValue
-
-    def fit(self, problem, trials = 100, verbose = True, limit = 10000):
+    def fit(self, problem, trials = 100, verbose = True, limit = 100000):
         for i in range(trials):
             epochs = 0
             state = problem.getStartState()
             legal = self.getLegalActions(state)
             while not problem.isGoalState(state):
                 print(f'\r{problem.name} Training... {epochs}', end = '')
+                self.experience += 1
                 self.update(state, problem, legal)
-                
+
                 if np.random.rand() < self.epsilon:
                     action = np.random.choice(legal)
                 else:
-                    action = self.getAction(state, legal, qTable = not np.random.binomial(1, self.beta))
+                    action = self.getAction(state, legal)
 
-                newState = problem.generateSuccessor(state, action)
-                newLegal = self.getLegalActions(newState)
+                state = problem.generateSuccessor(state, action)
+                legal = self.getLegalActions(state)
 
-                state, legal = newState, newLegal
                 epochs += 1
 
                 if epochs >= limit:

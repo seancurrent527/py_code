@@ -88,6 +88,6 @@ if __name__ == '__main__':
     root = tk.Tk()
     PULL = False
     gameState = game.GameState.fromFile(args.file)
-    playing = game.Game(gameState, game.Game.actionFromPlayer())
+    playing = game.Game(gameState, None)
     run(playing)
     root.mainloop()
